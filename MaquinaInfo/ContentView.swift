@@ -708,7 +708,7 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("MaquinaInfo")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
-                    Text("Version 1.0.1")
+                    Text("Version \(Bundle.main.infoDictionary?[\"CFBundleShortVersionString\"] as? String ?? \"1.0.2\")")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
