@@ -194,11 +194,7 @@ struct DashboardView: View {
                                 .fontWeight(.semibold)
                                 .lineLimit(1)
                             
-                            #if APP_STORE
-                            Text("GPU telemetry sandbox restricted")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            #else
+                            #if !APP_STORE
                             ProgressGaugeRow(
                                 title: lm.translate("Device Usage"),
                                 value: snapshot.gpu.usage,
@@ -290,12 +286,6 @@ struct DashboardView: View {
                                         .foregroundStyle(tempColor(avgTemp))
                                 }
                                 .padding(.top, 4)
-                            } else {
-                                #if APP_STORE
-                                Text(lm.translate("DirectDistOnly"))
-                                    .font(.caption2)
-                                    .foregroundStyle(.orange)
-                                #endif
                             }
                         }
                     }
@@ -402,16 +392,7 @@ struct GPUDetailView: View {
                             DetailRow(label: lm.translate("Cores"), value: "\(cores)")
                         }
                         
-                        #if APP_STORE
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(lm.translate("AppStoreWarning"))
-                                .font(.subheadline)
-                                .foregroundStyle(.orange)
-                                .padding(10)
-                                .background(Color.orange.opacity(0.1))
-                                .cornerRadius(8)
-                        }
-                        #else
+                        #if !APP_STORE
                         ProgressGaugeRow(
                             title: lm.translate("Device Usage"),
                             value: gpu.usage,
@@ -464,12 +445,7 @@ struct NPUDetailView: View {
                             DetailRow(label: lm.translate("NPU Version"), value: "\(ver)")
                         }
                         
-                        #if APP_STORE
-                        Text(lm.translate("AppStoreWarning"))
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .padding(.top, 6)
-                        #endif
+
                     }
                 }
                 .padding(.horizontal)
@@ -597,49 +573,44 @@ struct SensorsDetailView: View {
                 .padding(.horizontal)
                 .padding(.top, 16)
                 
-                #if APP_STORE
-                InfoCard(title: lm.translate("AppStoreWarning"), icon: "exclamationmark.shield", tintColor: .orange) {
-                    Text(lm.translate("AppStoreWarning"))
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal)
-                #else
-                Text(lm.translate("Sensor Details"))
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .padding(.horizontal)
-                
-                let grouped = Dictionary(grouping: sensors, by: { $0.type })
-                
-                ForEach(SensorType.allCases, id: \.rawValue) { type in
-                    if let list = grouped[type], !list.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(lm.translate(type.rawValue))
-                                .font(.headline)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal)
-                            
-                            VStack(spacing: 1) {
-                                ForEach(list) { sensor in
-                                    HStack {
-                                        Text(sensor.name)
-                                            .font(.body)
-                                        Spacer()
-                                        Text(String(format: "%.1f °C", sensor.value))
-                                            .font(.system(.body, design: .monospaced))
-                                            .fontWeight(.bold)
-                                            .foregroundStyle(tempColor(sensor.value))
+                #if !APP_STORE
+                if !sensors.isEmpty {
+                    Text(lm.translate("Sensor Details"))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+                    
+                    let grouped = Dictionary(grouping: sensors, by: { $0.type })
+                    
+                    ForEach(SensorType.allCases, id: \.rawValue) { type in
+                        if let list = grouped[type], !list.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(lm.translate(type.rawValue))
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal)
+                                
+                                VStack(spacing: 1) {
+                                    ForEach(list) { sensor in
+                                        HStack {
+                                            Text(sensor.name)
+                                                .font(.body)
+                                            Spacer()
+                                            Text(String(format: "%.1f °C", sensor.value))
+                                                .font(.system(.body, design: .monospaced))
+                                                .fontWeight(.bold)
+                                                .foregroundStyle(tempColor(sensor.value))
+                                        }
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 16)
+                                        .background(Color(NSColor.controlBackgroundColor))
                                     }
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 16)
-                                    .background(Color(NSColor.controlBackgroundColor))
                                 }
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .padding(.horizontal)
                             }
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .padding(.horizontal)
+                            .padding(.bottom, 8)
                         }
-                        .padding(.bottom, 8)
                     }
                 }
                 #endif
