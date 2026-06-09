@@ -62,7 +62,28 @@ xcodebuild -scheme MaquinaInfo -configuration Release OTHER_SWIFT_FLAGS="-D APP_
 
 ---
 
+## 🔓 Running the Pre-compiled App (Gatekeeper Bypass)
+
+When downloading the pre-compiled `MaquinaInfo.zip` directly from GitHub releases, macOS Gatekeeper may show a warning: **"Apple could not verify MaquinaInfo is free of malware..."**
+
+This happens because the release build is signed ad-hoc and is not notarized using a paid Apple Developer ID certificate. 
+
+To open and run the app, you can use either of these methods:
+
+### Method 1: The Standard macOS Way
+1. Open your **Finder** and locate the extracted `MaquinaInfo.app`.
+2. **Right-click (or Control-click)** the app icon and select **Open** from the context menu.
+3. Click **Open** in the confirmation dialog that appears. (This registers a permanent exception for this app).
+
+### Method 2: Strip the Quarantine Attribute via Terminal
+If you prefer, you can clear the browser-applied quarantine flag by running this command in your Terminal:
+```bash
+xattr -cr /path/to/MaquinaInfo.app
+```
+
+---
+
 ## 👤 Credits
 
-*   **Lead Developer**: Roberto A. Berrospe Machin (Ruta Internet S.R.L.).
-*   **AI Pair Programming Partners**: Gemini & Antigravity.
+*   **Lead Developer**: Roberto A. Berrospe Machin (Ruta Internet S.R.L.)
+*   **AI Pair Programming Partners**: Gemini & Antigravity (Google DeepMind Advanced Agentic Coding Team)
