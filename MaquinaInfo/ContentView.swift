@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var selectedItem: SidebarItem? = .dashboard
     @State private var lm = LanguageManager.shared
     @State private var showAboutSheet = false
+    @State private var showHelpSheet = false
     
     // Check compatibility at launch
     private let isSilicon = HardwareService.shared.isAppleSilicon()
@@ -86,8 +87,14 @@ struct ContentView: View {
             .sheet(isPresented: $showAboutSheet) {
                 AboutView(lm: lm, isPresented: $showAboutSheet)
             }
+            .sheet(isPresented: $showHelpSheet) {
+                HelpView(lm: lm, isPresented: $showHelpSheet)
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowAboutPanel"))) { _ in
                 showAboutSheet = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowHelpPanel"))) { _ in
+                showHelpSheet = true
             }
         }
     }
@@ -682,12 +689,21 @@ struct AboutView: View {
     var body: some View {
         VStack(spacing: 20) {
             HStack(spacing: 16) {
-                Image(systemName: "cpu")
-                    .font(.system(size: 60))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
-                    .shadow(color: .blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                if let appIcon = NSApplication.shared.applicationIconImage {
+                    Image(nsImage: appIcon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 64, height: 64)
+                        .cornerRadius(12)
+                        .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
+                } else {
+                    Image(systemName: "cpu")
+                        .font(.system(size: 60))
+                        .foregroundStyle(
+                            LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .shadow(color: .blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("MaquinaInfo")
@@ -743,24 +759,107 @@ struct AboutView: View {
     }
 }
 
+// MARK: - Custom Help View
+struct HelpView: View {
+    var lm: LanguageManager
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack(spacing: 12) {
+                if let appIcon = NSApplication.shared.applicationIconImage {
+                    Image(nsImage: appIcon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 48, height: 48)
+                        .cornerRadius(8)
+                }
+                Text(lm.translate("HelpTitle"))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                Spacer()
+            }
+            .padding(.top, 10)
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    HelpItemRow(title: lm.translate("CPU"), description: lm.translate("HelpCPUDesc"), icon: "cpu", color: .blue)
+                    HelpItemRow(title: lm.translate("GPU"), description: lm.translate("HelpGPUDesc"), icon: "bolt.fill", color: .purple)
+                    HelpItemRow(title: lm.translate("NPU"), description: lm.translate("HelpNPUDesc"), icon: "brain.head.profile", color: .cyan)
+                    HelpItemRow(title: lm.translate("Memory"), description: lm.translate("HelpRAMDesc"), icon: "memorychip", color: .green)
+                    HelpItemRow(title: lm.translate("Disk"), description: lm.translate("HelpDiskDesc"), icon: "internaldrive", color: .orange)
+                    HelpItemRow(title: lm.translate("Sensors"), description: lm.translate("HelpSensorsDesc"), icon: "thermometer.medium", color: .red)
+                }
+                .padding(.horizontal, 4)
+            }
+            .frame(maxHeight: 350)
+            
+            Divider()
+            
+            Button("OK") {
+                isPresented = false
+            }
+            .keyboardShortcut(.defaultAction)
+            .controlSize(.large)
+            .frame(width: 100)
+            .padding(.bottom, 10)
+        }
+        .padding(24)
+        .frame(width: 500)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+}
+
+struct HelpItemRow: View {
+    let title: String
+    let description: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(color)
+                .frame(width: 28, alignment: .center)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
 // MARK: - PDF Report Generation & Export
 
 @MainActor
 func exportToPDF(snapshot: SystemSnapshot) {
+    print("[PDF Export] Starting export panel...")
     let savePanel = NSSavePanel()
     savePanel.allowedContentTypes = [.pdf]
     savePanel.nameFieldStringValue = "MaquinaInfo_Report.pdf"
     
-    savePanel.begin { response in
+    let handleResponse: (NSApplication.ModalResponse) -> Void = { response in
+        print("[PDF Export] Save response received: \(response.rawValue)")
         if response == .OK, let url = savePanel.url {
+            print("[PDF Export] Selected destination URL: \(url.path)")
             let reportView = ReportView(snapshot: snapshot)
                 .frame(width: 612, height: 792)
             let renderer = ImageRenderer(content: reportView)
             
             renderer.render { size, context in
+                print("[PDF Export] Starting ImageRenderer rendering with size: \(size)")
                 var mediaBox = CGRect(origin: .zero, size: size)
-                guard let consumer = CGDataConsumer(url: url as CFURL),
-                      let pdfContext = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+                guard let pdfContext = CGContext(url as CFURL, mediaBox: &mediaBox, nil) else {
+                    print("[PDF Export] Failed to create CGContext directly from URL")
                     return
                 }
                 
@@ -768,8 +867,19 @@ func exportToPDF(snapshot: SystemSnapshot) {
                 context(pdfContext)
                 pdfContext.endPDFPage()
                 pdfContext.closePDF()
+                print("[PDF Export] PDF report exported successfully to: \(url.path)")
             }
+        } else {
+            print("[PDF Export] Save panel cancelled or invalid URL chosen")
         }
+    }
+    
+    if let window = NSApplication.shared.windows.first(where: { $0.isKeyWindow }) {
+        print("[PDF Export] Presenting save panel as sheet modal on key window")
+        savePanel.beginSheetModal(for: window, completionHandler: handleResponse)
+    } else {
+        print("[PDF Export] Fallback: presenting save panel as standalone window")
+        savePanel.begin(completionHandler: handleResponse)
     }
 }
 

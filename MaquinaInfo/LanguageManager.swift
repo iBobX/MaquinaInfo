@@ -355,6 +355,41 @@ struct Translations {
             "en": "Due to App Store sandbox rules, detailed temperatures and hardware counters are restricted in this version.",
             "es": "Debido a las reglas de sandbox de la App Store, las temperaturas detalladas y contadores de hardware están restringidos en esta versión.",
             "pt": "Devido às regras de sandbox da App Store, temperaturas detalhadas e contadores de hardware estão restritos nesta versão."
+        ],
+        "HelpTitle": [
+            "en": "MaquinaInfo Help",
+            "es": "Ayuda de MaquinaInfo",
+            "pt": "Ajuda do MaquinaInfo"
+        ],
+        "HelpCPUDesc": [
+            "en": "Processor load (average & per-core live rings) based on Mach kernel thread schedules.",
+            "es": "Carga del procesador (uso promedio y anillos por núcleo) basada en los hilos del kernel Mach.",
+            "pt": "Carga do processador (uso médio e anéis por núcleo) baseada nas threads do kernel Mach."
+        ],
+        "HelpGPUDesc": [
+            "en": "Graphics rendering and tiler usage. Under App Store sandbox, this is restricted to the GPU model name.",
+            "es": "Uso de renderizado de gráficos y tiler. Bajo sandbox de la App Store, se restringe al modelo de la GPU.",
+            "pt": "Uso de renderização de gráficos e tiler. Sob sandbox da App Store, é restrito ao nome do modelo da GPU."
+        ],
+        "HelpNPUDesc": [
+            "en": "Details of the Apple Neural Engine cores designed for high-throughput machine learning tasks.",
+            "es": "Detalles de los núcleos del Apple Neural Engine diseñados para tareas de machine learning de alto rendimiento.",
+            "pt": "Detalhes dos núcleos do Apple Neural Engine projetados para tarefas de machine learning de alto rendimento."
+        ],
+        "HelpRAMDesc": [
+            "en": "Physical RAM usage segmented into Wired (locked kernel), App memory, Compressed, and Free pools.",
+            "es": "Uso de RAM física dividida en Cableada (bloqueada por el kernel), Memoria de Apps, Comprimida y Libre.",
+            "pt": "Uso de RAM física dividida em Fio (bloqueada pelo kernel), Memória de Apps, Comprimida e Livre."
+        ],
+        "HelpDiskDesc": [
+            "en": "Total, used, and free storage capacities of your main and secondary mounted disk volumes.",
+            "es": "Capacidades de almacenamiento total, usado y libre de sus volúmenes de disco montados principal y secundarios.",
+            "pt": "Capacidades de armazenamento total, usado e livre dos seus volumes de disco montados principal e secundários."
+        ],
+        "HelpSensorsDesc": [
+            "en": "Thermal health and die temperatures read from the IOHID Event System (Direct distribution only).",
+            "es": "Estado de salud térmica y temperaturas de chips obtenidas de IOHID (Versión directa únicamente).",
+            "pt": "Estado de saúde térmica e temperaturas de chips obtidas de IOHID (Apenas na versão direta)."
         ]
     ]
 }

@@ -7,7 +7,7 @@ final class HardwareMonitor {
     private(set) var snapshot: SystemSnapshot?
     private var monitoringTask: Task<Void, Never>?
     
-    var updateInterval: Double = 2.0 {
+    var updateInterval: Double = 1.0 {
         didSet {
             UserDefaults.standard.set(updateInterval, forKey: "updateInterval")
             start()
@@ -16,7 +16,7 @@ final class HardwareMonitor {
     
     init() {
         let saved = UserDefaults.standard.double(forKey: "updateInterval")
-        self.updateInterval = saved > 0.0 ? saved : 2.0
+        self.updateInterval = saved > 0.0 ? saved : 1.0
     }
     
     /// Starts the background monitoring loop.

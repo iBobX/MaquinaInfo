@@ -64,5 +64,5 @@ xcodebuild -scheme MaquinaInfo -configuration Release OTHER_SWIFT_FLAGS="-D APP_
 
 ## 👤 Credits
 
-*   **Lead Developer**: Roberto A. Berrospe Machin (Ruta Internet S.R.L.)
-*   **AI Pair Programming Partners**: Gemini & Antigravity (Google DeepMind Advanced Agentic Coding Team)
+*   **Lead Developer**: Roberto A. Berrospe Machin (Ruta Internet S.R.L.).
+*   **AI Pair Programming Partners**: Gemini & Antigravity.

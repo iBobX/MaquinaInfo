@@ -22,6 +22,15 @@ struct MaquinaInfoApp: App {
                 }
                 .keyboardShortcut("i", modifiers: [.command])
             }
+            
+            CommandGroup(replacing: .help) {
+                Button(action: {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowHelpPanel"), object: nil)
+                }) {
+                    Text(LanguageManager.shared.translate("HelpTitle"))
+                }
+                .keyboardShortcut("?", modifiers: [.command])
+            }
         }
     }
 }
