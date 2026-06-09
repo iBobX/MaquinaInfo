@@ -1,6 +1,7 @@
 import Foundation
 import IOKit
 import Darwin
+import Metal
 
 /// A service responsible for querying macOS kernel APIs to retrieve hardware statistics.
 final class HardwareService {
@@ -16,6 +17,7 @@ final class HardwareService {
     private var lastSampleTime: Date?
     
     // IOHID Private API Dynamic Bindings
+    #if !APP_STORE
     private typealias IOHIDEventSystemClientRef = AnyObject
     private typealias IOHIDServiceClientRef = AnyObject
     private typealias IOHIDEventRef = AnyObject
@@ -26,9 +28,11 @@ final class HardwareService {
     private var serviceCopyProperty: (@convention(c) (IOHIDServiceClientRef, CFString) -> CFTypeRef?)?
     private var serviceCopyEvent: (@convention(c) (IOHIDServiceClientRef, UInt32, UInt32, UInt32) -> IOHIDEventRef?)?
     private var eventGetFloatValue: (@convention(c) (IOHIDEventRef, UInt32) -> Double)?
+    #endif
     
     /// Dynamically load HID symbols from the IOKit framework to query temperatures.
     private func setupIOHIDFunctions() {
+        #if !APP_STORE
         if let handle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW) {
             if let symCreate = dlsym(handle, "IOHIDEventSystemClientCreate") {
                 clientCreate = unsafeBitCast(symCreate, to: (@convention(c) (CFAllocator?) -> IOHIDEventSystemClientRef?).self)
@@ -49,6 +53,7 @@ final class HardwareService {
                 eventGetFloatValue = unsafeBitCast(symGetFloat, to: (@convention(c) (IOHIDEventRef, UInt32) -> Double).self)
             }
         }
+        #endif
     }
     
     /// Checks if the current machine is running Apple Silicon.
@@ -164,8 +169,14 @@ final class HardwareService {
         }
     }
     
-    /// Fetches GPU information using IOKit.
+    /// Fetches GPU information using IOKit or Metal.
     func fetchGPUInfo() -> GPUInfo {
+        #if APP_STORE
+        // App Store Safe: Use public Metal API to get GPU model name
+        let model = MTLCreateSystemDefaultDevice()?.name ?? "Apple M-Series GPU"
+        return GPUInfo(model: model, usage: 0.0, coreCount: nil, rendererUsage: nil, tilerUsage: nil)
+        #else
+        // Direct Distribution: Query detailed IOKit properties
         let serviceMatching = IOServiceMatching("IOAccelerator")
         var iterator: io_iterator_t = 0
         let result = IOServiceGetMatchingServices(kIOMainPortDefault, serviceMatching, &iterator)
@@ -223,10 +234,16 @@ final class HardwareService {
         }
         
         return GPUInfo(model: model, usage: usage, coreCount: coreCount, rendererUsage: rendererUsage, tilerUsage: tilerUsage)
+        #endif
     }
     
     /// Fetches NPU (Neural Engine) information.
     func fetchNPUInfo() -> NPUInfo {
+        #if APP_STORE
+        // App Store Safe: Return generic info since IOKit private class matching is restricted
+        return NPUInfo(model: "Apple Neural Engine", coreCount: 16, architecture: "Apple Silicon ANE", version: nil)
+        #else
+        // Direct Distribution: Query private IOKit driver properties
         let serviceMatching = IOServiceMatching("H11ANEIn")
         var iterator: io_iterator_t = 0
         let result = IOServiceGetMatchingServices(kIOMainPortDefault, serviceMatching, &iterator)
@@ -270,10 +287,16 @@ final class HardwareService {
         }
         
         return NPUInfo(model: model, coreCount: coreCount, architecture: architecture, version: version)
+        #endif
     }
     
     /// Fetches active temperature sensors.
     func fetchSensors() -> [SensorInfo] {
+        #if APP_STORE
+        // App Store Safe: Sandbox limits direct connection to HID Event System for sensors
+        return []
+        #else
+        // Direct Distribution: Query private IOHID services
         var sensorList: [SensorInfo] = []
         
         guard let create = clientCreate,
@@ -334,6 +357,7 @@ final class HardwareService {
         }
         
         return sensorList.sorted { $0.name < $1.name }
+        #endif
     }
     
     // MARK: - Private Helpers

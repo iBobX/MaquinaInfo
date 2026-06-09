@@ -13,5 +13,15 @@ struct MaquinaInfoApp: App {
         WindowGroup {
             ContentView()
         }
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button(action: {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowAboutPanel"), object: nil)
+                }) {
+                    Text(LanguageManager.shared.translate("AboutTitle"))
+                }
+                .keyboardShortcut("i", modifiers: [.command])
+            }
+        }
     }
 }

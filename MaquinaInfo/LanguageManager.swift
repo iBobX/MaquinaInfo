@@ -310,6 +310,51 @@ struct Translations {
             "en": "Select a menu item",
             "es": "Selecciona una opción del menú",
             "pt": "Selecione um item do menu"
+        ],
+        "FreeStorage": [
+            "en": "Free Space",
+            "es": "Espacio Libre",
+            "pt": "Espaço Livre"
+        ],
+        "AverageCPUTemp": [
+            "en": "Average CPU Temp",
+            "es": "Temp. Promedio de CPU",
+            "pt": "Temp. Média da CPU"
+        ],
+        "ExportPDF": [
+            "en": "Export PDF Report",
+            "es": "Exportar Reporte PDF",
+            "pt": "Exportar Relatório PDF"
+        ],
+        "AboutTitle": [
+            "en": "About MaquinaInfo",
+            "es": "Acerca de MaquinaInfo",
+            "pt": "Sobre o MaquinaInfo"
+        ],
+        "Address": [
+            "en": "Address",
+            "es": "Dirección",
+            "pt": "Endereço"
+        ],
+        "Company": [
+            "en": "Company",
+            "es": "Compañía",
+            "pt": "Empresa"
+        ],
+        "Developer": [
+            "en": "Developer",
+            "es": "Desarrollador",
+            "pt": "Desenvolvedor"
+        ],
+        "DirectDistOnly": [
+            "en": "Detailed diagnostics available in direct version",
+            "es": "Diagnósticos detallados disponibles en versión directa",
+            "pt": "Diagnósticos detalhados disponíveis na versão direta"
+        ],
+        "AppStoreWarning": [
+            "en": "Due to App Store sandbox rules, detailed temperatures and hardware counters are restricted in this version.",
+            "es": "Debido a las reglas de sandbox de la App Store, las temperaturas detalladas y contadores de hardware están restringidos en esta versión.",
+            "pt": "Devido às regras de sandbox da App Store, temperaturas detalhadas e contadores de hardware estão restritos nesta versão."
         ]
     ]
 }

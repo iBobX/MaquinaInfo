@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import PDFKit
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @State private var monitor = HardwareMonitor()
     @State private var selectedItem: SidebarItem? = .dashboard
     @State private var lm = LanguageManager.shared
+    @State private var showAboutSheet = false
     
     // Check compatibility at launch
     private let isSilicon = HardwareService.shared.isAppleSilicon()
@@ -30,7 +33,6 @@ struct ContentView: View {
                 .frame(minWidth: 200)
             } detail: {
                 ZStack {
-                    // Modern dark aesthetic background
                     LinearGradient(
                         colors: [Color(NSColor.windowBackgroundColor), Color(NSColor.controlBackgroundColor)],
                         startPoint: .topLeading,
@@ -56,7 +58,7 @@ struct ContentView: View {
                             case .sensors:
                                 SensorsDetailView(sensors: snapshot.sensors, lm: lm)
                             case .settings:
-                                SettingsView(monitor: monitor, lm: lm)
+                                SettingsView(monitor: monitor, snapshot: snapshot, lm: lm)
                             case .none:
                                 Text(lm.translate("Menu"))
                                     .font(.title2)
@@ -80,6 +82,12 @@ struct ContentView: View {
             }
             .onDisappear {
                 monitor.stop()
+            }
+            .sheet(isPresented: $showAboutSheet) {
+                AboutView(lm: lm, isPresented: $showAboutSheet)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowAboutPanel"))) { _ in
+                showAboutSheet = true
             }
         }
     }
@@ -131,10 +139,21 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(lm.translate("Overview"))
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .padding(.horizontal)
-                    .padding(.top, 16)
+                HStack {
+                    Text(lm.translate("Overview"))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                    Spacer()
+                    Button(action: {
+                        exportToPDF(snapshot: snapshot)
+                    }) {
+                        Label(lm.translate("ExportPDF"), systemImage: "doc.badge.plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+                    .help("Export system snapshot report to a PDF file")
+                }
+                .padding(.horizontal)
+                .padding(.top, 16)
                 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 16)], spacing: 16) {
                     // CPU Card
@@ -175,11 +194,17 @@ struct DashboardView: View {
                                 .fontWeight(.semibold)
                                 .lineLimit(1)
                             
+                            #if APP_STORE
+                            Text("GPU telemetry sandbox restricted")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            #else
                             ProgressGaugeRow(
                                 title: lm.translate("Device Usage"),
                                 value: snapshot.gpu.usage,
                                 color: .purple
                             )
+                            #endif
                             
                             if let cores = snapshot.gpu.coreCount {
                                 Text("\(cores) \(lm.translate("Cores"))")
@@ -229,7 +254,7 @@ struct DashboardView: View {
                                 )
                                 
                                 HStack {
-                                    Text("\(primaryDisk.formattedAvailable) \(lm.translate("Free"))")
+                                    Text("\(primaryDisk.formattedAvailable) \(lm.translate("FreeStorage"))")
                                     Spacer()
                                     Text(primaryDisk.formattedTotal)
                                 }
@@ -257,7 +282,7 @@ struct DashboardView: View {
                             if !cpuTemps.isEmpty {
                                 let avgTemp = cpuTemps.map(\.value).reduce(0, +) / Double(cpuTemps.count)
                                 HStack {
-                                    Text(lm.translate("Average Usage") + " Temp")
+                                    Text(lm.translate("AverageCPUTemp"))
                                     Spacer()
                                     Text(String(format: "%.1f °C", avgTemp))
                                         .font(.system(.body, design: .monospaced))
@@ -265,6 +290,12 @@ struct DashboardView: View {
                                         .foregroundStyle(tempColor(avgTemp))
                                 }
                                 .padding(.top, 4)
+                            } else {
+                                #if APP_STORE
+                                Text(lm.translate("DirectDistOnly"))
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                                #endif
                             }
                         }
                     }
@@ -290,7 +321,6 @@ struct CPUDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Info Card
                 InfoCard(title: lm.translate("Hardware Info"), icon: "cpu", tintColor: .blue) {
                     VStack(spacing: 12) {
                         DetailRow(label: lm.translate("Model"), value: cpu.model)
@@ -321,7 +351,6 @@ struct CPUDetailView: View {
                                 .fontWeight(.bold)
                                 .foregroundStyle(.secondary)
                             
-                            // Visual load indicator (donut ring style)
                             ZStack {
                                 Circle()
                                     .stroke(Color.secondary.opacity(0.15), lineWidth: 6)
@@ -373,6 +402,16 @@ struct GPUDetailView: View {
                             DetailRow(label: lm.translate("Cores"), value: "\(cores)")
                         }
                         
+                        #if APP_STORE
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(lm.translate("AppStoreWarning"))
+                                .font(.subheadline)
+                                .foregroundStyle(.orange)
+                                .padding(10)
+                                .background(Color.orange.opacity(0.1))
+                                .cornerRadius(8)
+                        }
+                        #else
                         ProgressGaugeRow(
                             title: lm.translate("Device Usage"),
                             value: gpu.usage,
@@ -394,6 +433,7 @@ struct GPUDetailView: View {
                                 color: .pink
                             )
                         }
+                        #endif
                     }
                 }
                 .padding(.horizontal)
@@ -423,6 +463,13 @@ struct NPUDetailView: View {
                         if let ver = npu.version {
                             DetailRow(label: lm.translate("NPU Version"), value: "\(ver)")
                         }
+                        
+                        #if APP_STORE
+                        Text(lm.translate("AppStoreWarning"))
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .padding(.top, 6)
+                        #endif
                     }
                 }
                 .padding(.horizontal)
@@ -448,14 +495,12 @@ struct MemoryDetailView: View {
                         DetailRow(label: lm.translate("Wired"), value: memory.formattedWired)
                         DetailRow(label: lm.translate("Compressed"), value: memory.formattedCompressed)
                         
-                        // Stacked memory bar chart
                         VStack(alignment: .leading, spacing: 6) {
                             Text(lm.translate("Realtime Activity"))
                                 .font(.caption)
                                 .fontWeight(.bold)
                                 .foregroundStyle(.secondary)
                             
-                            // Visual memory allocation gauge
                             GeometryReader { geo in
                                 let totalWidth = geo.size.width
                                 let usedPercent = Double(memory.used) / Double(memory.total)
@@ -463,22 +508,15 @@ struct MemoryDetailView: View {
                                 let compPercent = Double(memory.compressed) / Double(memory.total)
                                 
                                 HStack(spacing: 0) {
-                                    // Wired (dark green)
                                     Rectangle()
                                         .fill(Color.green.opacity(0.8))
                                         .frame(width: totalWidth * wiredPercent)
-                                    
-                                    // App/Other Used (green)
                                     Rectangle()
                                         .fill(Color.green.opacity(0.5))
                                         .frame(width: max(0, totalWidth * (usedPercent - wiredPercent - compPercent)))
-                                    
-                                    // Compressed (yellow-green)
                                     Rectangle()
                                         .fill(Color.teal)
                                         .frame(width: totalWidth * compPercent)
-                                    
-                                    // Free (transparent/grey)
                                     Rectangle()
                                         .fill(Color.secondary.opacity(0.15))
                                 }
@@ -486,7 +524,6 @@ struct MemoryDetailView: View {
                             }
                             .frame(height: 16)
                             
-                            // Legend
                             HStack(spacing: 12) {
                                 LegendItem(name: lm.translate("Wired"), color: .green.opacity(0.8))
                                 LegendItem(name: lm.translate("App Memory"), color: .green.opacity(0.5))
@@ -500,21 +537,6 @@ struct MemoryDetailView: View {
                 .padding(.horizontal)
                 .padding(.top, 16)
             }
-        }
-    }
-}
-
-struct LegendItem: View {
-    let name: String
-    let color: Color
-    var body: some View {
-        HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(color)
-                .frame(width: 10, height: 10)
-            Text(name)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
         }
     }
 }
@@ -565,7 +587,6 @@ struct SensorsDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Thermal pressure card
                 InfoCard(title: lm.translate("Thermal Health"), icon: "gauge.medium", tintColor: .red) {
                     HStack {
                         Text(lm.translate("Thermal Health"))
@@ -576,12 +597,19 @@ struct SensorsDetailView: View {
                 .padding(.horizontal)
                 .padding(.top, 16)
                 
+                #if APP_STORE
+                InfoCard(title: lm.translate("AppStoreWarning"), icon: "exclamationmark.shield", tintColor: .orange) {
+                    Text(lm.translate("AppStoreWarning"))
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal)
+                #else
                 Text(lm.translate("Sensor Details"))
                     .font(.title3)
                     .fontWeight(.bold)
                     .padding(.horizontal)
                 
-                // Group by type
                 let grouped = Dictionary(grouping: sensors, by: { $0.type })
                 
                 ForEach(SensorType.allCases, id: \.rawValue) { type in
@@ -614,6 +642,7 @@ struct SensorsDetailView: View {
                         .padding(.bottom, 8)
                     }
                 }
+                #endif
             }
         }
     }
@@ -629,12 +658,12 @@ struct SensorsDetailView: View {
 // MARK: - Settings View
 struct SettingsView: View {
     @Bindable var monitor: HardwareMonitor
+    let snapshot: SystemSnapshot
     var lm: LanguageManager
     
     var body: some View {
         Form {
             Section(header: Text(lm.translate("Settings Options")).font(.headline).bold()) {
-                // Language selection
                 Picker(lm.translate("Select Language"), selection: Binding(
                     get: { lm.selectedLanguage },
                     set: { lm.selectedLanguage = $0 }
@@ -646,7 +675,6 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
                 .padding(.vertical, 6)
                 
-                // Refresh rate
                 Picker(lm.translate("Refresh Rate"), selection: $monitor.updateInterval) {
                     Text("0.5 \(lm.translate("Seconds"))").tag(0.5)
                     Text("1.0 \(lm.translate("Seconds"))").tag(1.0)
@@ -657,8 +685,263 @@ struct SettingsView: View {
                 .padding(.vertical, 6)
             }
             .padding()
+            
+            Section(header: Text("Actions").font(.headline).bold()) {
+                Button(action: {
+                    exportToPDF(snapshot: snapshot)
+                }) {
+                    Label(lm.translate("ExportPDF"), systemImage: "doc.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.vertical, 6)
+            }
+            .padding()
         }
         .formStyle(.grouped)
+    }
+}
+
+// MARK: - Custom About View
+struct AboutView: View {
+    var lm: LanguageManager
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack(spacing: 16) {
+                Image(systemName: "cpu")
+                    .font(.system(size: 60))
+                    .foregroundStyle(
+                        LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .shadow(color: .blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MaquinaInfo")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                    Text("Version 1.0.0")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.top, 10)
+            
+            Divider()
+            
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
+                    Text(lm.translate("Developer") + ":")
+                        .fontWeight(.bold)
+                        .frame(width: 120, alignment: .leading)
+                    Text("Roberto Berrospe")
+                }
+                
+                HStack(alignment: .top) {
+                    Text(lm.translate("Company") + ":")
+                        .fontWeight(.bold)
+                        .frame(width: 120, alignment: .leading)
+                    Text("Ruta Internet S.R.L.")
+                }
+                
+                HStack(alignment: .top) {
+                    Text(lm.translate("Address") + ":")
+                        .fontWeight(.bold)
+                        .frame(width: 120, alignment: .leading)
+                    Text("18 de Julio 3306\nFlorida, Uruguay")
+                        .lineLimit(2)
+                }
+            }
+            .font(.body)
+            .padding(.horizontal)
+            
+            Divider()
+            
+            Button("OK") {
+                isPresented = false
+            }
+            .keyboardShortcut(.defaultAction)
+            .controlSize(.large)
+            .frame(width: 100)
+            .padding(.bottom, 10)
+        }
+        .padding(24)
+        .frame(width: 420)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+}
+
+// MARK: - PDF Report Generation & Export
+
+@MainActor
+func exportToPDF(snapshot: SystemSnapshot) {
+    let savePanel = NSSavePanel()
+    savePanel.allowedContentTypes = [.pdf]
+    savePanel.nameFieldStringValue = "MaquinaInfo_Report.pdf"
+    
+    savePanel.begin { response in
+        if response == .OK, let url = savePanel.url {
+            let reportView = ReportView(snapshot: snapshot)
+                .frame(width: 612, height: 792)
+            let renderer = ImageRenderer(content: reportView)
+            
+            renderer.render { size, context in
+                var mediaBox = CGRect(origin: .zero, size: size)
+                guard let consumer = CGDataConsumer(url: url as CFURL),
+                      let pdfContext = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+                    return
+                }
+                
+                pdfContext.beginPDFPage(nil)
+                context(pdfContext)
+                pdfContext.endPDFPage()
+                pdfContext.closePDF()
+            }
+        }
+    }
+}
+
+struct ReportView: View {
+    let snapshot: SystemSnapshot
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MaquinaInfo - Hardware Report")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    Text("Generated on \(snapshot.timestamp.formatted())")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "cpu")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.blue)
+            }
+            
+            Divider()
+            
+            // Section 1: System Info
+            VStack(alignment: .leading, spacing: 10) {
+                Text("System Information")
+                    .font(.headline)
+                    .foregroundStyle(.blue)
+                
+                HStack(alignment: .top, spacing: 40) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Processor (CPU)")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                        Text("Model: \(snapshot.cpu.model)")
+                        Text("Cores: \(snapshot.cpu.cores)")
+                        Text("Architecture: \(snapshot.cpu.architecture)")
+                        Text("Average Usage: \(Int(snapshot.cpu.usage * 100))%")
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Graphics (GPU)")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                        Text("Model: \(snapshot.gpu.model)")
+                        if let cores = snapshot.gpu.coreCount {
+                            Text("Cores: \(cores)")
+                        }
+                        Text("Device Usage: \(Int(snapshot.gpu.usage * 100))%")
+                    }
+                }
+            }
+            
+            Divider()
+            
+            // Section 2: Memory & Storage
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Memory & Storage")
+                    .font(.headline)
+                    .foregroundStyle(.blue)
+                
+                HStack(alignment: .top, spacing: 40) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Memory (RAM)")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                        Text("Total: \(snapshot.memory.formattedTotal)")
+                        Text("Used: \(snapshot.memory.formattedUsed)")
+                        Text("Free: \(snapshot.memory.formattedFree)")
+                        Text("Wired: \(snapshot.memory.formattedWired)")
+                        Text("Compressed: \(snapshot.memory.formattedCompressed)")
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Storage (Disks)")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                        ForEach(snapshot.disks) { disk in
+                            Text("\(disk.name): \(disk.formattedAvailable) free of \(disk.formattedTotal)")
+                        }
+                    }
+                }
+            }
+            
+            Divider()
+            
+            // Section 3: Thermal Sensors (Only if available)
+            if !snapshot.sensors.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Thermal & Sensors")
+                        .font(.headline)
+                        .foregroundStyle(.blue)
+                    
+                    let cpuTemps = snapshot.sensors.filter { $0.type == .cpu }
+                    if !cpuTemps.isEmpty {
+                        Text("CPU Temperatures:")
+                            .fontWeight(.bold)
+                        let chunked = cpuTemps.chunked(into: 4)
+                        ForEach(0..<chunked.count, id: \.self) { rowIdx in
+                            HStack(spacing: 20) {
+                                ForEach(chunked[rowIdx]) { sensor in
+                                    Text("\(sensor.name): \(String(format: "%.1f°C", sensor.value))")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            Divider()
+            
+            // Footer with User & Company Info
+            VStack(alignment: .center, spacing: 4) {
+                Text("Licenciado para / Licensed to:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Roberto Berrospe - Ruta Internet S.R.L.")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                Text("18 de Julio 3306, Florida, Uruguay")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(40)
+        .frame(width: 612, height: 792)
+        .background(Color.white)
+        .foregroundColor(.black)
+    }
+}
+
+// MARK: - Array Chunk Helper
+extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
     }
 }
 
@@ -750,6 +1033,21 @@ struct DetailRow: View {
             Text(value)
                 .fontWeight(.semibold)
                 .font(.system(.body, design: .monospaced))
+        }
+    }
+}
+
+struct LegendItem: View {
+    let name: String
+    let color: Color
+    var body: some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(color)
+                .frame(width: 10, height: 10)
+            Text(name)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 }
