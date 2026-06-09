@@ -2,6 +2,7 @@ import Foundation
 import IOKit
 import Darwin
 import Metal
+import CoreML
 
 /// A service responsible for querying macOS kernel APIs to retrieve hardware statistics.
 final class HardwareService {
@@ -111,6 +112,15 @@ final class HardwareService {
     func fetchMemoryInfo() -> MemoryInfo {
         let total = ProcessInfo.processInfo.physicalMemory
         
+        var swapTotal: UInt64 = 0
+        var swapUsed: UInt64 = 0
+        var sysctlSize = MemoryLayout<xsw_usage>.size
+        var swapUsage = xsw_usage()
+        if sysctlbyname("vm.swapusage", &swapUsage, &sysctlSize, nil, 0) == 0 {
+            swapTotal = UInt64(swapUsage.xsu_total)
+            swapUsed = UInt64(swapUsage.xsu_used)
+        }
+        
         var stats = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
         let result = withUnsafeMutablePointer(to: &stats) {
@@ -122,20 +132,45 @@ final class HardwareService {
         guard result == KERN_SUCCESS else {
             let freeVal = total / 4
             let usedVal = total - freeVal
-            return MemoryInfo(total: total, used: usedVal, free: freeVal, wired: total / 8, compressed: total / 8)
+            return MemoryInfo(
+                total: total,
+                used: usedVal,
+                free: freeVal,
+                wired: total / 8,
+                compressed: total / 8,
+                appMemory: usedVal - total / 8,
+                cachedFiles: total / 8,
+                swapUsed: swapUsed,
+                swapTotal: swapTotal
+            )
         }
         
         let pageSize = UInt64(vm_kernel_page_size)
-        let free = UInt64(stats.free_count) * pageSize
-        let active = UInt64(stats.active_count) * pageSize
+        let freeMem = UInt64(stats.free_count) * pageSize
         let wired = UInt64(stats.wire_count) * pageSize
         let compressed = UInt64(stats.compressor_page_count) * pageSize
         
-        // Memory Used = Active + Wired + Compressed
-        let used = active + wired + compressed
-        let freeMem = total > used ? total - used : free
+        // App Memory = (internal_page_count - purgeable_count) * page_size
+        let appMemory = (stats.internal_page_count > stats.purgeable_count) ?
+            (UInt64(stats.internal_page_count - stats.purgeable_count)) * pageSize : 0
         
-        return MemoryInfo(total: total, used: used, free: freeMem, wired: wired, compressed: compressed)
+        // Cached Files = (external_page_count + purgeable_count) * page_size
+        let cachedFiles = (UInt64(stats.external_page_count) + UInt64(stats.purgeable_count)) * pageSize
+        
+        // Memory Used = App Memory + Wired Memory + Compressed Memory
+        let used = appMemory + wired + compressed
+        
+        return MemoryInfo(
+            total: total,
+            used: used,
+            free: freeMem,
+            wired: wired,
+            compressed: compressed,
+            appMemory: appMemory,
+            cachedFiles: cachedFiles,
+            swapUsed: swapUsed,
+            swapTotal: swapTotal
+        )
     }
     
     /// Fetches information about mounted disks.
@@ -239,9 +274,32 @@ final class HardwareService {
     
     /// Fetches NPU (Neural Engine) information.
     func fetchNPUInfo() -> NPUInfo {
+        var coreCount: Int? = nil
+        
+        // Dynamically query ANE cores via CoreML (works inside sandbox too)
+        #if canImport(CoreML)
+        if #available(macOS 14.0, *) {
+            let devices = CoreML.MLComputeDevice.allComputeDevices
+            for device in devices {
+                if case let .neuralEngine(neuralEngine) = device {
+                    coreCount = neuralEngine.totalCoreCount
+                    break
+                }
+            }
+        }
+        #endif
+        
+        let activity = "Dynamic (Power Gated)"
+        
         #if APP_STORE
         // App Store Safe: Return generic info since IOKit private class matching is restricted
-        return NPUInfo(model: "Apple Neural Engine", coreCount: 16, architecture: "Apple Silicon ANE", version: nil)
+        return NPUInfo(
+            model: "Apple Neural Engine",
+            coreCount: coreCount ?? 16,
+            architecture: "Apple Silicon ANE",
+            version: nil,
+            activity: activity
+        )
         #else
         // Direct Distribution: Query private IOKit driver properties
         let serviceMatching = IOServiceMatching("H11ANEIn")
@@ -249,7 +307,6 @@ final class HardwareService {
         let result = IOServiceGetMatchingServices(kIOMainPortDefault, serviceMatching, &iterator)
         
         var model: String? = "Apple Neural Engine"
-        var coreCount: Int? = nil
         var architecture: String? = nil
         var version: Int? = nil
         
@@ -286,7 +343,13 @@ final class HardwareService {
             IOObjectRelease(iterator)
         }
         
-        return NPUInfo(model: model, coreCount: coreCount, architecture: architecture, version: version)
+        return NPUInfo(
+            model: model,
+            coreCount: coreCount ?? 16,
+            architecture: architecture,
+            version: version,
+            activity: activity
+        )
         #endif
     }
     

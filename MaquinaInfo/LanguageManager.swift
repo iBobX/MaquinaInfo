@@ -131,6 +131,31 @@ struct Translations {
             "es": "Arquitectura",
             "pt": "Arquitetura"
         ],
+        "Cached Files": [
+            "en": "Cached Files",
+            "es": "Archivos en Caché",
+            "pt": "Arquivos em Cache"
+        ],
+        "Swap Used": [
+            "en": "Swap Used",
+            "es": "Swap Usado",
+            "pt": "Swap Usado"
+        ],
+        "Used Storage": [
+            "en": "Used Space",
+            "es": "Espacio Usado",
+            "pt": "Espaço Usado"
+        ],
+        "Total Capacity": [
+            "en": "Total Capacity",
+            "es": "Capacidad Total",
+            "pt": "Capacidade Total"
+        ],
+        "NPU Activity": [
+            "en": "NPU Activity",
+            "es": "Actividad de NPU",
+            "pt": "Atividade da NPU"
+        ],
         "Total RAM": [
             "en": "Total Capacity",
             "es": "Capacidad Total",
@@ -377,9 +402,9 @@ struct Translations {
             "pt": "Detalhes dos núcleos do Apple Neural Engine projetados para tarefas de machine learning de alto rendimento."
         ],
         "HelpRAMDesc": [
-            "en": "Physical RAM usage segmented into Wired (locked kernel), App memory, Compressed, and Free pools.",
-            "es": "Uso de RAM física dividida en Cableada (bloqueada por el kernel), Memoria de Apps, Comprimida y Libre.",
-            "pt": "Uso de RAM física dividida em Fio (bloqueada pelo kernel), Memória de Apps, Comprimida e Livre."
+            "en": "Physical RAM usage segmented into Wired (locked kernel), App memory, Compressed, Cached Files, Free pools, and Swap Used.",
+            "es": "Uso de RAM física dividida en Cableada (del kernel), Memoria de Apps, Comprimida, Archivos en Caché, Libre y Swap Usado.",
+            "pt": "Uso de RAM física dividida em Fio (do kernel), Memória de Apps, Comprimida, Arquivos em Cache, Livre e Swap Usado."
         ],
         "HelpDiskDesc": [
             "en": "Total, used, and free storage capacities of your main and secondary mounted disk volumes.",

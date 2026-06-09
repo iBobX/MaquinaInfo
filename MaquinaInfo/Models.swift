@@ -16,6 +16,10 @@ struct MemoryInfo {
     let free: UInt64
     let wired: UInt64
     let compressed: UInt64
+    let appMemory: UInt64
+    let cachedFiles: UInt64
+    let swapUsed: UInt64
+    let swapTotal: UInt64
     
     var usagePercentage: Double {
         guard total > 0 else { return 0 }
@@ -40,6 +44,22 @@ struct MemoryInfo {
     
     var formattedCompressed: String {
         ByteCountFormatter.string(fromByteCount: Int64(compressed), countStyle: .binary)
+    }
+    
+    var formattedAppMemory: String {
+        ByteCountFormatter.string(fromByteCount: Int64(appMemory), countStyle: .binary)
+    }
+    
+    var formattedCachedFiles: String {
+        ByteCountFormatter.string(fromByteCount: Int64(cachedFiles), countStyle: .binary)
+    }
+    
+    var formattedSwapUsed: String {
+        ByteCountFormatter.string(fromByteCount: Int64(swapUsed), countStyle: .binary)
+    }
+    
+    var formattedSwapTotal: String {
+        ByteCountFormatter.string(fromByteCount: Int64(swapTotal), countStyle: .binary)
     }
 }
 
@@ -79,6 +99,7 @@ struct NPUInfo {
     let coreCount: Int?
     let architecture: String?
     let version: Int?
+    let activity: String?
 }
 
 /// Category type for hardware sensors.

@@ -451,8 +451,9 @@ struct NPUDetailView: View {
                         if let ver = npu.version {
                             DetailRow(label: lm.translate("NPU Version"), value: "\(ver)")
                         }
-                        
-
+                        if let activity = npu.activity {
+                            DetailRow(label: lm.translate("NPU Activity"), value: activity)
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -474,9 +475,12 @@ struct MemoryDetailView: View {
                     VStack(spacing: 14) {
                         DetailRow(label: lm.translate("Total RAM"), value: memory.formattedTotal)
                         DetailRow(label: lm.translate("Used"), value: memory.formattedUsed)
-                        DetailRow(label: lm.translate("Free"), value: memory.formattedFree)
+                        DetailRow(label: lm.translate("App Memory"), value: memory.formattedAppMemory)
                         DetailRow(label: lm.translate("Wired"), value: memory.formattedWired)
                         DetailRow(label: lm.translate("Compressed"), value: memory.formattedCompressed)
+                        DetailRow(label: lm.translate("Cached Files"), value: memory.formattedCachedFiles)
+                        DetailRow(label: lm.translate("Free"), value: memory.formattedFree)
+                        DetailRow(label: lm.translate("Swap Used"), value: memory.formattedSwapUsed)
                         
                         VStack(alignment: .leading, spacing: 6) {
                             Text(lm.translate("Realtime Activity"))
@@ -548,11 +552,11 @@ struct DiskDetailView: View {
                             )
                             
                             HStack {
-                                DetailRow(label: lm.translate("Used"), value: ByteCountFormatter.string(fromByteCount: Int64(disk.totalCapacity - disk.availableCapacity), countStyle: .binary))
+                                DetailRow(label: lm.translate("Used Storage"), value: ByteCountFormatter.string(fromByteCount: Int64(disk.totalCapacity - disk.availableCapacity), countStyle: .binary))
                                 Spacer()
                                 DetailRow(label: lm.translate("Available"), value: disk.formattedAvailable)
                             }
-                            DetailRow(label: lm.translate("Total RAM"), value: disk.formattedTotal)
+                            DetailRow(label: lm.translate("Total Capacity"), value: disk.formattedTotal)
                         }
                     }
                     .padding(.horizontal)
@@ -966,6 +970,17 @@ struct ReportView: View {
                         }
                         Text("Device Usage: \(Int(snapshot.gpu.usage * 100))%")
                     }
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Neural Engine (NPU)")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                        Text("Model: \(snapshot.npu.model ?? "Apple Neural Engine")")
+                        if let cores = snapshot.npu.coreCount {
+                            Text("Cores: \(cores)")
+                        }
+                        Text("Activity: \(snapshot.npu.activity ?? "Dynamic")")
+                    }
                 }
             }
             
@@ -984,9 +999,12 @@ struct ReportView: View {
                             .fontWeight(.bold)
                         Text("Total: \(snapshot.memory.formattedTotal)")
                         Text("Used: \(snapshot.memory.formattedUsed)")
-                        Text("Free: \(snapshot.memory.formattedFree)")
+                        Text("App Memory: \(snapshot.memory.formattedAppMemory)")
                         Text("Wired: \(snapshot.memory.formattedWired)")
                         Text("Compressed: \(snapshot.memory.formattedCompressed)")
+                        Text("Cached Files: \(snapshot.memory.formattedCachedFiles)")
+                        Text("Free: \(snapshot.memory.formattedFree)")
+                        Text("Swap Used: \(snapshot.memory.formattedSwapUsed)")
                     }
                     
                     VStack(alignment: .leading, spacing: 6) {
