@@ -708,7 +708,7 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("MaquinaInfo")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
-                    Text("Version 1.0.0")
+                    Text("Version 1.0.1")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -851,15 +851,20 @@ func exportToPDF(snapshot: SystemSnapshot) {
         print("[PDF Export] Save response received: \(response.rawValue)")
         if response == .OK, let url = savePanel.url {
             print("[PDF Export] Selected destination URL: \(url.path)")
+            
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
+            print("[PDF Export] Temporary URL: \(tempURL.path)")
+            
             let reportView = ReportView(snapshot: snapshot)
                 .frame(width: 612, height: 792)
             let renderer = ImageRenderer(content: reportView)
             
+            // Render to temp URL first
             renderer.render { size, context in
                 print("[PDF Export] Starting ImageRenderer rendering with size: \(size)")
                 var mediaBox = CGRect(origin: .zero, size: size)
-                guard let pdfContext = CGContext(url as CFURL, mediaBox: &mediaBox, nil) else {
-                    print("[PDF Export] Failed to create CGContext directly from URL")
+                guard let pdfContext = CGContext(tempURL as CFURL, mediaBox: &mediaBox, nil) else {
+                    print("[PDF Export] Failed to create CGContext for temp URL")
                     return
                 }
                 
@@ -867,8 +872,36 @@ func exportToPDF(snapshot: SystemSnapshot) {
                 context(pdfContext)
                 pdfContext.endPDFPage()
                 pdfContext.closePDF()
-                print("[PDF Export] PDF report exported successfully to: \(url.path)")
+                print("[PDF Export] Temporary PDF written successfully.")
             }
+            
+            // Verify temp file was written
+            guard FileManager.default.fileExists(atPath: tempURL.path) else {
+                print("[PDF Export] Error: Temp PDF file was not created.")
+                return
+            }
+            
+            // Copy temp file to destination
+            let accessing = url.startAccessingSecurityScopedResource()
+            print("[PDF Export] Accessing security-scoped resource: \(accessing)")
+            
+            do {
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try FileManager.default.removeItem(at: url)
+                }
+                try FileManager.default.copyItem(at: tempURL, to: url)
+                print("[PDF Export] PDF report exported successfully to: \(url.path)")
+            } catch {
+                print("[PDF Export] Failed to copy temp PDF to destination: \(error.localizedDescription)")
+            }
+            
+            if accessing {
+                url.stopAccessingSecurityScopedResource()
+                print("[PDF Export] Stopped accessing security-scoped resource")
+            }
+            
+            // Clean up temp file
+            try? FileManager.default.removeItem(at: tempURL)
         } else {
             print("[PDF Export] Save panel cancelled or invalid URL chosen")
         }
